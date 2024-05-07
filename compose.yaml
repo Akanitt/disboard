@@ -1,0 +1,64 @@
+services:
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./src:/var/www/html
+    ports:
+      - 9000:80
+
+    depends_on:
+      db:
+        condition: service_healthy
+    secrets:
+      - db-password
+    environment:
+      - TZ=Asia/Bangkok
+      - DB_PASSWORD=''
+      - DB_HOST=db
+      - DB_NAME=blog
+      - DB_USER=root
+    develop:
+      watch:
+        - action: sync
+          path: ./src
+          target: /var/www/html
+  db:
+    image: mariadb
+    restart: always
+    user: root
+    secrets:
+      - db-password
+    volumes:
+      - db-data:/var/lib/mysql
+      - "./src/config/db.sql:/docker-entrypoint-initdb.d/1.sql"
+    environment:
+      - MARIADB_ROOT_PASSWORD=''
+      - MARIADB_DATABASE=blog
+      - TZ=Asia/Bangkok
+    expose:
+      - 3306
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/healthcheck.sh", "--su-mysql", "--connect",  "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  phpmyadmin:
+    image: phpmyadmin
+    ports:
+      - 8080:80
+    depends_on:
+      - db
+    environment:
+      - PMA_HOST=db
+      - TZ=Asia/Bangkok
+volumes:
+  db-data:
+secrets:
+  db-password:
+    file: db/password.txt
+
+
+
+
